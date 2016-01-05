@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  creationTimestamp: null
+  labels:
+    application: sample-app
+    template: eap64-oracle-s2i
+    xpaas: 1.1.0
+  name: sample-app
+spec:
+  replicas: 1
+  selector:
+    deploymentConfig: sample-app
+  strategy:
+    resources: {}
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        application: sample-app
+        deploymentConfig: sample-app
+      name: sample-app
+    spec:
+      containers:
+      - env:
+        - name: OPENSHIFT_KUBE_PING_LABELS
+          value: application=sample-app
+        - name: OPENSHIFT_KUBE_PING_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: DB_SERVICE_PREFIX_MAPPING
+          value: ORACLE
+        - name: ORACLE_SERVICE_HOST
+          value: scanaddress.oracle.company.nl
+        - name: ORACLE_SERVICE_PORT
+          value: "1521"
+        - name: ORACLE_USERNAME
+          value: schemauser
+        - name: ORACLE_PASSWORD
+          value: password
+        - name: ORACLE_MIN_POOL_SIZE
+          value: "1"
+        - name: ORACLE_MAX_POOL_SIZE
+          value: "10"
+        - name: ORACLE_TX_ISOLATION
+          value: "false"
+        - name: ORACLE_JNDI
+          value: java:jboss/datasources/oracle
+        - name: ORACLE_DATABASE
+          value: schemaname
+        - name: HORNETQ_CLUSTER_PASSWORD
+          value: U2DKiXkm
+        - name: HORNETQ_QUEUES
+        - name: HORNETQ_TOPICS
+        image: 172.23.204.64:5000/sample-app/sample-app@sha256:d008ee6ce09e311e308de06ff4c9d0812ab9099d2edf38dc3aa425b6b3ae9286
+        imagePullPolicy: Always
+        name: sample-app
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8888
+          name: ping
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - /opt/eap/bin/readinessProbe.sh
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      securityContext: {}
+      terminationGracePeriodSeconds: 60
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - sample-app
+      from:
+        kind: ImageStreamTag
+        name: sample-app:latest
+    type: ImageChange
+  - type: ConfigChange
+status: {}

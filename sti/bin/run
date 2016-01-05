@@ -1,0 +1,516 @@
+#!/bin/sh -x
+
+CONFIG_FILE=$JBOSS_HOME/standalone/configuration/standalone-openshift.xml
+LOGGING_FILE=$JBOSS_HOME/standalone/configuration/logging.properties
+HORNETQ_SUBSYSTEM_FILE=$JBOSS_HOME/bin/hornetq-subsystem
+
+. $JBOSS_HOME/bin/messaging-config.sh
+
+# Argumeints:
+# $1 - service name
+# $2 - datasource jndi name
+# $3 - datasource username
+# $4 - datasource password
+# $5 - datasource host
+# $6 - datasource port
+# $7 - datasource databasename
+# $8 - driver
+function generate_tx_datasource() {
+
+  ds="                  <datasource jta=\"false\" jndi-name=\"${2}ObjectStore\" pool-name=\"${1}ObjectStorePool\" enabled=\"true\">
+                      <connection-url>jdbc:${8}://${5}:${6}/${7}</connection-url>
+                      <driver>${8}</driver>"
+      if [ -n "$tx_isolation" ]; then
+        ds="$ds
+                      <transaction-isolation>$tx_isolation</transaction-isolation>"
+      fi
+      if [ -n "$min_pool_size" ] || [ -n "$max_pool_size" ]; then
+        ds="$ds
+                      <pool>"
+        if [ -n "$min_pool_size" ]; then
+          ds="$ds
+                          <min-pool-size>$min_pool_size</min-pool-size>"
+        fi
+        if [ -n "$max_pool_size" ]; then
+          ds="$ds
+                          <max-pool-size>$max_pool_size</max-pool-size>"
+        fi
+        ds="$ds
+                      </pool>"
+      fi
+      ds="$ds
+
+                      <security>
+                          <user-name>${3}</user-name>
+                          <password>${4}</password>
+                      </security>
+                  </datasource>"
+  echo $ds | sed ':a;N;$!ba;s|\n|\\n|g'
+}
+
+# Argumeints:
+# $1 - service name
+# $2 - datasource jndi name
+# $3 - datasource username
+# $4 - datasource password
+# $5 - datasource host
+# $6 - datasource port
+# $7 - datasource databasename
+# $6 - connection checker class
+# $9 - exception sorter class
+# $10 - driver
+function generate_datasource() {
+
+  case "${10}" in
+    "mysql") ds="
+                  <xa-datasource jndi-name=\"$2\" pool-name=\"$1\" use-java-context=\"true\" enabled=\"true\">
+                      <xa-datasource-property name=\"ServerName\">$5</xa-datasource-property>
+                      <xa-datasource-property name=\"Port\">$6</xa-datasource-property>
+                      <xa-datasource-property name=\"DatabaseName\">$7</xa-datasource-property>
+                      <driver>${10}</driver>"
+      if [ -n "$tx_isolation" ]; then
+        ds="$ds
+                      <transaction-isolation>$tx_isolation</transaction-isolation>"
+      fi
+      if [ -n "$min_pool_size" ] || [ -n "$max_pool_size" ]; then
+        ds="$ds
+                      <xa-pool>"
+        if [ -n "$min_pool_size" ]; then
+          ds="$ds
+                          <min-pool-size>$min_pool_size</min-pool-size>"
+        fi
+        if [ -n "$max_pool_size" ]; then
+          ds="$ds
+                          <max-pool-size>$max_pool_size</max-pool-size>"
+        fi
+        ds="$ds
+                      </xa-pool>"
+      fi
+      ds="$ds
+                      <security>
+                          <user-name>$3</user-name>
+                          <password>$4</password>
+                      </security>
+                      <validation>
+                          <validate-on-match>true</validate-on-match>
+                          <valid-connection-checker class-name=\"$8\"></valid-connection-checker>
+                          <exception-sorter class-name=\"$9\"></exception-sorter>
+                      </validation>
+                  </xa-datasource>"
+      ;;
+    "postgresql") ds="                <xa-datasource jndi-name=\"$2\" pool-name=\"$1\" use-java-context=\"true\" enabled=\"true\">
+                    <xa-datasource-property name=\"ServerName\">$5</xa-datasource-property>
+                    <xa-datasource-property name=\"PortNumber\">$6</xa-datasource-property>
+                    <xa-datasource-property name=\"DatabaseName\">$7</xa-datasource-property>
+                    <driver>${10}</driver>"
+      if [ -n "$tx_isolation" ]; then
+        ds="$ds
+                      <transaction-isolation>$tx_isolation</transaction-isolation>"
+      fi
+      if [ -n "$min_pool_size" ] || [ -n "$max_pool_size" ]; then
+        ds="$ds
+                      <xa-pool>"
+        if [ -n "$min_pool_size" ]; then
+          ds="$ds
+                          <min-pool-size>$min_pool_size</min-pool-size>"
+        fi
+        if [ -n "$max_pool_size" ]; then
+          ds="$ds
+                          <max-pool-size>$max_pool_size</max-pool-size>"
+        fi
+        ds="$ds
+                      </xa-pool>"
+      fi
+      ds="$ds
+                    <security>
+                        <user-name>$3</user-name>
+                        <password>$4</password>
+                    </security>
+                    <validation>
+                        <validate-on-match>true</validate-on-match>
+                        <valid-connection-checker class-name=\"$8\"></valid-connection-checker>
+                        <exception-sorter class-name=\"$9\"></exception-sorter>
+                    </validation>
+                </xa-datasource>"
+      ;;
+    "oracle") ds="             <datasource jta=\"false\" jndi-name=\"$2\" pool-name=\"$1\" enabled=\"true\" use-ccm=\"false\">
+                    <connection-url>jdbc:oracle:thin:@(description=(enable=broken)(address_list=(load_balance=on)(failover=on)(address=(protocol=tcp)(host=$5)(port=$6))(address=(protocol=tcp)(host=$5)(port=$6)))(connect_data=(service_name=$7)(failover_mode=(type=select)(method=basic))))</connection-url>
+                    <driver-class>oracle.jdbc.OracleDriver</driver-class>
+                    <driver>${10}</driver>
+                    <pool>
+                        <min-pool-size>25</min-pool-size>
+                        <max-pool-size>50</max-pool-size>
+                        <prefill>true</prefill>
+                        <use-strict-min>true</use-strict-min>
+                    </pool>
+                    <security>
+                        <user-name>$3</user-name>
+                        <password>$4</password>
+                    </security>
+                    <validation>
+                        <validate-on-match>false</validate-on-match>
+                        <background-validation>false</background-validation>
+                    </validation>
+                    <statement>
+                        <share-prepared-statements>false</share-prepared-statements>
+                    </statement>
+                </datasource>"
+      ;;
+    *) ds="                <datasource jndi-name=\"java:jboss/datasources/ExampleDS\" pool-name=\"ExampleDS\" enabled=\"true\" use-java-context=\"true\">
+                    <connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>
+                    <driver>h2</driver>
+                    <security>
+                        <user-name>sa</user-name>
+                        <password>sa</password>
+                    </security>
+                </datasource>"
+      ;;
+  esac
+
+  echo $ds | sed ':a;N;$!ba;s|\n|\\n|g'
+}
+
+# Finds the environment variable  and returns its value if found.
+# Otherwise returns the default value if provided.
+#
+# Arguments:
+# $1 env variable name to check
+# $2 default value if environemnt variable was not set
+function find_env() {
+  var=`printenv "$1"`
+
+  # If environment variable exists
+  if [ -n "$var" ]; then
+    echo $var
+  else
+    echo $2
+  fi
+}
+
+function inject_jdbc_store() {
+  jdbcStore="<jdbc-store datasource-jndi-name=\"${1}ObjectStore\"/>"
+  sed -i "s|<!-- ##JDBC_STORE## -->|${jdbcStore}|" $CONFIG_FILE
+}
+
+function inject_tx_datasource() {
+  tx_backend=${TX_DATABASE_PREFIX_MAPPING}
+
+  if [ -n "${tx_backend}" ] ; then
+    service_name=${db_backend%=*}
+    service=${service_name^^}
+    service=${service//-/_}
+    db=${service##*_}
+    prefix=${db_backend#*=}
+
+    host=$(find_env "${service}_SERVICE_HOST")
+    port=$(find_env "${service}_SERVICE_PORT")
+
+    if [ -z $host ] || [ -z $port ]; then
+      echo "There is a problem with your service configuration!"
+      echo "You provided following database mapping (via TX_SERVICE_PREFIX_MAPPING environment variable): $tx_backend. To configure datasources we expect ${service}_SERVICE_HOST and ${service}_SERVICE_PORT to be set."
+      echo
+      echo "Current values:"
+      echo
+      echo "${service}_SERVICE_HOST: $host"
+      echo "${service}_SERVICE_PORT: $port"
+      echo
+      echo "Please make sure you provided correct service name and prefix in the mapping. Additionally please check that you do not set portalIP to None in the $service_name service. Headless services are not supported at this time."
+      echo
+      echo "WARNING! The ${db,,} datasource for $prefix service WILL NOT be configured."
+      return
+    fi
+
+    # Custom JNDI environment variable name format: [NAME]_[DATABASE_TYPE]_JNDI appended by ObjectStore
+    jndi=$(find_env "${prefix}_JNDI" "java:jboss/datasources/${service,,}")
+
+    # Database username environment variable name format: [NAME]_[DATABASE_TYPE]_USERNAME
+    username=$(find_env "${prefix}_USERNAME")
+
+    # Database password environment variable name format: [NAME]_[DATABASE_TYPE]_PASSWORD
+    password=$(find_env "${prefix}_PASSWORD")
+
+    # Database name environment variable name format: [NAME]_[DATABASE_TYPE]_DATABASE
+    database=$(find_env "${prefix}_DATABASE")
+
+    if [ -z $jndi ] || [ -z $username ] || [ -z $password ] || [ -z $database ]; then
+      echo "Ooops, there is a problem with the ${db,,} datasource!"
+      echo "In order to configure ${db,,} transactional datasource for $prefix service you need to provide following environment variables: ${prefix}_USERNAME, ${prefix}_PASSWORD, ${prefix}_DATABASE."
+      echo
+      echo "Current values:"
+      echo
+      echo "${prefix}_USERNAME: $username"
+      echo "${prefix}_PASSWORD: $password"
+      echo "${prefix}_DATABASE: $database"
+      echo
+      echo "WARNING! The ${db,,} datasource for $prefix service WILL NOT be configured."
+      db="ignore"
+    fi
+
+    # Transaction isolation level environment variable name format: [NAME]_[DATABASE_TYPE]_TX_ISOLATION
+    tx_isolation=$(find_env "${prefix}_TX_ISOLATION")
+
+    # min pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MIN_POOL_SIZE
+    min_pool_size=$(find_env "${prefix}_MIN_POOL_SIZE")
+
+    # max pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MAX_POOL_SIZE
+    max_pool_size=$(find_env "${prefix}_MAX_POOL_SIZE")
+
+    case "$db" in
+      "MYSQL")
+        driver="mysql"
+        datasource="$(generate_tx_datasource ${service,,} $jndi $username $password $host $port $database $driver)\n"
+        inject_jdbc_store $jndi
+        ;;
+      "POSTGRESQL")
+        driver="postgresql"
+        datasource="$(generate_tx_datasource ${service,,} $jndi $username $password $host $port $database $driver)\n"
+        inject_jdbc_store $jndi
+        ;;
+      "ORACLE")
+        driver="oracle"
+        datasource="$(generate_tx_datasource ${service,,} $jndi $username $password $host $port $database $driver)\n"
+        inject_jdbc_store $jndi
+        ;;
+      *)
+        datasource=""
+        ;;
+    esac
+    echo ${datasource} | sed ':a;N;$!ba;s|\n|\\n|g'
+  fi
+}
+
+# Finds the name of the database services and generates data sources
+# based on this info
+function inject_datasources() {
+  # Find all databases in the $DB_SERVICE_PREFIX_MAPPING separated by ","
+  IFS=',' read -a db_backends <<< $DB_SERVICE_PREFIX_MAPPING
+
+  if [ "${#db_backends[@]}" -eq "0" ]; then
+    datasources=$(generate_datasource)
+  else
+    for db_backend in ${db_backends[@]}; do
+
+      service_name=${db_backend%=*}
+      service=${service_name^^}
+      service=${service//-/_}
+      db=${service##*_}
+      prefix=${db_backend#*=}
+
+      if [[ "$service" != *"_"* ]]; then
+          echo "There is a problem with the DB_SERVICE_PREFIX_MAPPING environment variable!"
+          echo "You provided the following database mapping (via DB_SERVICE_PREFIX_MAPPING): $db_backend. The mapping does not contain the database type."
+          echo
+          echo "Please make sure the mapping is of the form <name>-<database_type>=PREFIX, where <database_type> is either MYSQL or POSTGRESQL."
+          echo
+          echo "WARNING! The datasource for $prefix service WILL NOT be configured."
+          continue
+      fi
+
+      host=$(find_env "${service}_SERVICE_HOST")
+      port=$(find_env "${service}_SERVICE_PORT")
+
+      if [ -z $host ] || [ -z $port ]; then
+        echo "There is a problem with your service configuration!"
+        echo "You provided following database mapping (via DB_SERVICE_PREFIX_MAPPING environment variable): $db_backend. To configure datasources we expect ${service}_SERVICE_HOST and ${service}_SERVICE_PORT to be set."
+        echo
+        echo "Current values:"
+        echo
+        echo "${service}_SERVICE_HOST: $host"
+        echo "${service}_SERVICE_PORT: $port"
+        echo
+        echo "Please make sure you provided correct service name and prefix in the mapping. Additionally please check that you do not set portalIP to None in the $service_name service. Headless services are not supported at this time."
+        echo
+        echo "WARNING! The ${db,,} datasource for $prefix service WILL NOT be configured."
+        continue
+      fi
+
+      # Custom JNDI environment variable name format: [NAME]_[DATABASE_TYPE]_JNDI
+      jndi=$(find_env "${prefix}_JNDI" "java:jboss/datasources/${service,,}")
+
+      # Database username environment variable name format: [NAME]_[DATABASE_TYPE]_USERNAME
+      username=$(find_env "${prefix}_USERNAME")
+
+      # Database password environment variable name format: [NAME]_[DATABASE_TYPE]_PASSWORD
+      password=$(find_env "${prefix}_PASSWORD")
+
+      # Database name environment variable name format: [NAME]_[DATABASE_TYPE]_DATABASE
+      database=$(find_env "${prefix}_DATABASE")
+
+      if [ -z $jndi ] || [ -z $username ] || [ -z $password ] || [ -z $database ]; then
+        echo "Ooops, there is a problem with the ${db,,} datasource!"
+        echo "In order to configure ${db,,} datasource for $prefix service you need to provide following environment variables: ${prefix}_USERNAME, ${prefix}_PASSWORD, ${prefix}_DATABASE."
+        echo
+        echo "Current values:"
+        echo
+        echo "${prefix}_USERNAME: $username"
+        echo "${prefix}_PASSWORD: $password"
+        echo "${prefix}_DATABASE: $database"
+        echo
+        echo "WARNING! The ${db,,} datasource for $prefix service WILL NOT be configured."
+        continue
+      fi
+
+      # Transaction isolation level environment variable name format: [NAME]_[DATABASE_TYPE]_TX_ISOLATION
+      tx_isolation=$(find_env "${prefix}_TX_ISOLATION")
+
+      # min pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MIN_POOL_SIZE
+      min_pool_size=$(find_env "${prefix}_MIN_POOL_SIZE")
+
+      # max pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MAX_POOL_SIZE
+      max_pool_size=$(find_env "${prefix}_MAX_POOL_SIZE")
+
+      case "$db" in
+        "MYSQL")
+          driver="mysql"
+          checker="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"
+          sorter="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"
+          ;;
+        "POSTGRESQL")
+          driver="postgresql"
+          checker="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker"
+          sorter="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter"
+          ;;
+        "ORACLE")
+          driver="oracle"
+          checker="dummy_checker_class"
+          sorter="dummy_sorter_class"
+          ;;
+        *)
+          echo "There is a problem with the DB_SERVICE_PREFIX_MAPPING environment variable!"
+          echo "You provided the following database mapping (via DB_SERVICE_PREFIX_MAPPING): $db_backend."
+          echo "The mapping contains the following database type: ${db}, which is not supported. Currently, only MYSQL and POSTGRESQL are supported."
+          echo
+          echo "Please make sure you provide the correct database type in the mapping."
+          echo
+          echo "WARNING! The ${db,,} datasource for $prefix service WILL NOT be configured."
+          continue
+          ;;
+      esac
+
+      datasources="$datasources$(generate_datasource ${service,,} $jndi $username $password $host $port $database $checker $sorter $driver)\n"
+    done
+  fi
+
+  datasources="$datasources$(inject_tx_datasource)"
+
+  sed -i "s|<!-- ##DATASOURCES## -->|${datasources%$'\n'}|" $CONFIG_FILE
+}
+
+function configure_administration() {
+  if [ -n "${EAP_ADMIN_PASSWORD+_}" ]; then
+      # default management username 'eapadmin'
+      EAP_ADMIN_USERNAME=${EAP_ADMIN_USERNAME-eapadmin}
+      # if EAP_ADMIN_USERNAME already exists, this changes the password instead
+      $JBOSS_HOME/bin/add-user.sh -u "$EAP_ADMIN_USERNAME" -p "$EAP_ADMIN_PASSWORD"
+  fi
+}
+
+function configure_ha() {
+  # Set HA args
+  JBOSS_HA_ARGS="-b 0.0.0.0"
+  if [ -n "${EAP_NODE_NAME+_}" ]; then
+      JBOSS_NODE_NAME="${EAP_NODE_NAME}"
+  elif [ -n "${container_uuid+_}" ]; then
+      JBOSS_NODE_NAME="${container_uuid}"
+  elif [ -n "${HOSTNAME+_}" ]; then
+      JBOSS_NODE_NAME="${HOSTNAME}"
+  fi
+  if [ -n "${JBOSS_NODE_NAME+_}" ]; then
+      JBOSS_HA_ARGS="${JBOSS_HA_ARGS} -Djboss.node.name=${JBOSS_NODE_NAME}"
+  fi
+}
+
+
+function configure_other() {
+  sed -i "s|^.*\.module=org\.jboss\.logmanager\.ext$||" $LOGGING_FILE
+}
+
+function configure_https() {
+  https="<!-- No HTTPS configuration discovered -->"
+  if [ -n "${EAP_HTTPS_NAME}" -a -n "${EAP_HTTPS_PASSWORD}" -a -n "${EAP_HTTPS_KEYSTORE_DIR}" -a -n "${EAP_HTTPS_KEYSTORE}" ] ; then
+    https="<connector name=\"https\" protocol=\"HTTP/1.1\" socket-binding=\"https\" scheme=\"https\" secure=\"true\"> \
+                <ssl name=\"${EAP_HTTPS_NAME}\" password=\"${EAP_HTTPS_PASSWORD}\" certificate-key-file=\"${EAP_HTTPS_KEYSTORE_DIR}/${EAP_HTTPS_KEYSTORE}\"/> \
+            </connector>"
+  elif [ -n "${EAP_HTTPS_NAME}" -o -n "${EAP_HTTPS_PASSWORD}" -o -n "${EAP_HTTPS_KEYSTORE_DIR}" -o -n "${EAP_HTTPS_KEYSTORE}" ] ; then
+    echo "WARNING! Partial HTTPS configuration, the https connector WILL NOT be configured."
+  fi
+  sed -i "s|<!-- ##HTTPS## -->|${https}|" $CONFIG_FILE
+}
+
+function configure_hornetq_destinations() {
+  IFS=',' read -a queues <<< ${HORNETQ_QUEUES}
+  IFS=',' read -a topics <<< ${HORNETQ_TOPICS}
+
+  destinations=""
+  if [ "${#queues[@]}" -ne "0" -o "${#topics[@]}" -ne "0" ]; then
+    if [ "${#queues[@]}" -ne "0" ]; then
+      for queue in ${queues[@]}; do
+        destinations="${destinations}<jms-queue name=\"${queue}\"><entry name=\"/queue/${queue}\"/></jms-queue>"
+      done
+    fi
+    if [ "${#topics[@]}" -ne "0" ]; then
+      for topic in ${topics[@]}; do
+        destinations="${destinations}<jms-topic name=\"${topic}\"><entry name=\"/topic/${topic}\"/></jms-topic>"
+      done
+    fi
+  fi
+  echo "${destinations}"
+}
+
+function configure_hornetq_cluster_password() {
+  if [ -n "${HORNETQ_CLUSTER_PASSWORD}" ] ; then
+    JBOSS_MESSAGING_ARGS="${JBOSS_MESSAGING_ARGS} -Djboss.messaging.cluster.password=${HORNETQ_CLUSTER_PASSWORD}"
+  fi
+}
+
+function configure_hornetq() {
+  if [ true != "$AMQ" ] ; then
+    configure_hornetq_cluster_password
+
+    destinations=$(configure_hornetq_destinations)
+    hornetq_subsystem=$(cat "${HORNETQ_SUBSYSTEM_FILE}" | sed -e "s|##DESTINATIONS##|${destinations}|" | sed ':a;N;$!ba;s|\n|\\n|g')
+
+    sed -i 's|<!-- ##MESSAGING_EXTENSION## -->|<extension module="org.jboss.as.messaging"/>|' "${CONFIG_FILE}"
+    sed -i "s|<!-- ##MESSAGING_SUBSYSTEM## -->|${hornetq_subsystem%$'\n'}|" "${CONFIG_FILE}"
+    sed -i 's|<!-- ##MESSAGING_PORTS## -->|<socket-binding name="messaging" port="5445"/><socket-binding name="messaging-throughput" port="5455"/>|' "${CONFIG_FILE}"
+  fi
+}
+
+EAP_SECDOMAIN_LOGIN_MODULE=${EAP_SECDOMAIN_LOGIN_MODULE-UsersRoles}
+EAP_SECDOMAIN_USERS_PROPERTIES=${EAP_SECDOMAIN_USERS_PROPERTIES-users.properties} # module default anyway
+EAP_SECDOMAIN_ROLES_PROPERTIES=${EAP_SECDOMAIN_ROLES_PROPERTIES-roles.properties} # module default anyway
+
+configure_security_domains() {
+  domains="<!-- no additional security domains configured -->"
+  if [ -n "$EAP_SECDOMAIN_NAME" ]; then
+      if [ -n "$EAP_SECDOMAIN_PASSWORD_STACKING" ]; then
+          stack="<module-option name=\"password-stacking\" value=\"useFirstPass\"/>"
+      else
+          stack=""
+      fi
+      domains="\
+        <security-domain name=\"$EAP_SECDOMAIN_NAME\" cache-type=\"default\">\
+            <authentication>\
+                <login-module code=\"UsersRoles\" flag=\"required\">\
+                    <module-option name=\"usersProperties\" value=\"$EAP_SECDOMAIN_USERS_PROPERTIES\"/>\
+                    <module-option name=\"rolesProperties\" value=\"$EAP_SECDOMAIN_ROLES_PROPERTIES\"/>\
+                    $stack\
+                </login-module>\
+            </authentication>\
+        </security-domain>"
+  fi
+  sed -i "s|<!-- ##ADDITIONAL_SECURITY_DOMAINS## -->|$domains|" "$CONFIG_FILE"
+}
+
+inject_datasources
+inject_brokers
+configure_administration
+configure_ha
+configure_other
+configure_https
+configure_hornetq
+configure_security_domains
+
+echo "Running $JBOSS_IMAGE_NAME image, version $JBOSS_IMAGE_VERSION-$JBOSS_IMAGE_RELEASE"
+
+exec $JBOSS_HOME/bin/standalone.sh -c standalone-openshift.xml -bmanagement 0.0.0.0 $JBOSS_HA_ARGS ${JBOSS_MESSAGING_ARGS}

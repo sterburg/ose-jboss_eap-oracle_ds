@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  annotations:
+    openshift.io/generated-by: OpenShiftWebConsole
+  creationTimestamp: null
+  labels:
+    app: ose-jboss-eap64-oracle
+  name: ose-jboss-eap64-oracle
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ose-jboss-eap64-oracle:latest
+  resources: {}
+  source:
+    git:
+      ref: master
+      uri: https://github.com/sterburg/ose-jboss_eap-oracle_ds.gi
+    type: Git
+  strategy:
+    dockerStrategy:
+      from:
+        kind: ImageStreamTag
+        name: jboss-eap64-openshift:1.1
+        namespace: openshift
+    type: Docker
+  triggers:
+  - generic:
+      secret: 5d95255222fb63da
+    type: Generic
+  - github:
+      secret: 584132a396aa8b83
+    type: GitHub
+  - imageChange: {}
+    type: ImageChange
+  - type: ConfigChange
+status:
+  lastVersion: 0
