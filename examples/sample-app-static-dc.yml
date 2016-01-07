@@ -31,12 +31,16 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: metadata.namespace
+        - name: TX_DATABASE_PREFIX_MAPPING
+          value: sample-oracle=ORACLE
         - name: DB_SERVICE_PREFIX_MAPPING
-          value: ORACLE
+          value: sample-oracle=ORACLE
         - name: ORACLE_SERVICE_HOST
           value: scanaddress.oracle.company.nl
         - name: ORACLE_SERVICE_PORT
           value: "1521"
+        - name: ORACLE_JNDI
+          value: java:jboss/datasources/oracle
         - name: ORACLE_USERNAME
           value: schemauser
         - name: ORACLE_PASSWORD
@@ -47,8 +51,6 @@ spec:
           value: "10"
         - name: ORACLE_TX_ISOLATION
           value: "false"
-        - name: ORACLE_JNDI
-          value: java:jboss/datasources/oracle
         - name: ORACLE_DATABASE
           value: schemaname
         - name: HORNETQ_CLUSTER_PASSWORD
