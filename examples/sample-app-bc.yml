@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  creationTimestamp: null
+  labels:
+    application: sample-app
+    template: eap6-basic-sti
+  name: sample-app
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: sample-app:latest
+  resources: {}
+  source:
+    contextDir: kitchensink
+    git:
+      ref: 6.4.x
+      uri: https://github.com/jboss-developer/jboss-eap-quickstarts
+    type: Git
+  strategy:
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        name: ose-jboss-eap64-oracle:latest
+        namespace: openshift
+    type: Source
+  triggers:
+  - imageChange: {}
+    type: ImageChange
+status:
+  lastVersion: 0

@@ -1,8 +1,8 @@
 FROM registry.access.redhat.com/jboss-eap-6/eap64-openshift:latest
 
-ADD settings.xml /home/jboss/.m2/settings.xml
 ADD sti/bin/*   /usr/local/s2i/
 ADD modules/com/    /opt/eap/modules/com/
+ADD configuration/settings.xml /home/jboss/.m2/settings.xml
 Add configuration/standalone-openshift.xml $JBOSS_HOME/standalone/configuration/standalone-openshift.xml
 
 LABEL com.redhat.deployments-dir="/opt/eap/standalone/deployments" \

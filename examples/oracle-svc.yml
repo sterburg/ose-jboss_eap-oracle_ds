@@ -1,19 +1,38 @@
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
-    description: Oracle Datasource
-  creationTimestamp: null
-  labels:
-    datasource: oracle
-  name: oracle
-spec:
-  ports:
-  - name: oracle
-    port: 1521
-    protocol: TCP
-    targetPort: 1521
-  sessionAffinity: None
-  type: ClusterIP
-status:
-  loadBalancer: {}
+List:
+  apiVersion: v1
+  Items:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        description: Oracle Datasource
+      creationTimestamp: null
+      labels:
+        datasource: oracle
+      name: oracle
+    spec:
+      ports:
+      - name: oracle
+        port: 1521
+        protocol: TCP
+        targetPort: 1521
+      sessionAffinity: None
+      type: ClusterIP
+    status:
+      loadBalancer: {}
+  - apiVersion: v1
+    kind: Endpoints
+    metadata:
+      creationTimestamp: null
+      labels:
+        datasource: oracle
+      name: oracle
+    subsets:
+    - addresses:
+      - ip: 172.23.198.17
+      - ip: 172.23.198.18
+      - ip: 172.23.198.19
+      ports:
+      - name: oracle
+        port: 1521
+        protocol: TCP
