@@ -154,13 +154,31 @@ under the License.
      | this mirror serves has an ID that matches the mirrorOf element of this mirror. IDs are used
      | for inheritance and direct lookup purposes, and must be unique across the set of mirrors.
      |
-    <mirror>
-      <id>mirrorId</id>
-      <mirrorOf>repositoryId</mirrorOf>
-      <name>Human Readable Name for this Mirror.</name>
-      <url>http://my.repository.com/repo/path</url>
-    </mirror>
      -->
+    <mirror>
+      <id>redhat-techpreview</id>
+      <mirrorOf>maven.repository.redhat.com</mirrorOf>
+      <name>redhat-techpreview</name>
+      <url>http://maven.repository.redhat.com/techpreview/all/</url>
+    </mirror>
+    <mirror>
+      <id>redhat-ga</id>
+      <mirrorOf>maven.repository.redhat.com</mirrorOf>
+      <name>redhat-ga</name>
+      <url>https://maven.repository.redhat.com/ga/</url>
+    </mirror>
+    <mirror>
+      <id>jboss-ce</id>
+      <mirrorOf>jboss-ce</mirrorOf>
+      <name>jboss-nexus</name>
+      <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+    </mirror>
+    <mirror>
+      <id>jbocc-deprecated</id>
+      <mirrorOf>jboss-deprecated</mirrorOf>
+      <name>jboss-deprecated</name>
+      <url>https://repository.jboss.org/nexus/content/repositories/deprecated/</url>
+    </mirror>
   </mirrors>
   
   <!-- profiles
