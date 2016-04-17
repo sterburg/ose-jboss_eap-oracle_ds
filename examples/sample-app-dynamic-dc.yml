@@ -51,7 +51,7 @@ spec:
           value: U2DKiXkm
         - name: HORNETQ_QUEUES
         - name: HORNETQ_TOPICS
-        image: 172.23.204.64:5000/sample-app/sample-app@sha256:d008ee6ce09e311e308de06ff4c9d0812ab9099d2edf38dc3aa425b6b3ae9286
+        image: 172.30.150.84:5000/sample-app/sample-app@sha256:d008ee6ce09e311e308de06ff4c9d0812ab9099d2edf38dc3aa425b6b3ae9286
         imagePullPolicy: Always
         name: sample-app
         ports:

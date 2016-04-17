@@ -1,6 +1,6 @@
-List:
-  apiVersion: v1
-  Items:
+apiVersion: v1
+kind: List
+Items:
   - apiVersion: v1
     kind: Service
     metadata:
