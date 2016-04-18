@@ -6,9 +6,9 @@ Items:
   metadata:
     creationTimestamp: null
     labels:
-      application: ose-jboss-eap64-oracle
+      application: jboss-eap64-oracle
       template: eap6-basic-sti
-    name: ose-jboss-eap64-oracle
+    name: jboss-eap64-oracle
   spec: {}
   status:
     dockerImageRepository: ""
@@ -17,29 +17,27 @@ Items:
   metadata:
     creationTimestamp: null
     labels:
-      app: ose-jboss-eap64-oracle
-    name: ose-jboss-eap64-oracle
+      app: jboss-eap64-oracle
+    name: jboss-eap64-oracle
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: ose-jboss-eap64-oracle:latest
+        name: jboss-eap64-oracle:latest
     resources: {}
     source:
       type: Git
       git:
         ref: master
-        uri: https://github.com/sterburg/ose-jboss_eap-oracle_ds.gi
+        uri: https://github.com/sterburg/ose-jboss_eap-oracle_ds.git
     strategy:
       type: Docker
       dockerStrategy:
         from:
           kind: ImageStreamTag
-          name: jboss-eap6-openshift:6.4
+          name: jboss-eap64-openshift:latest
           namespace: openshift
     triggers:
     - type: ImageChange
       imageChange: {}
     - type: ConfigChange
-  status:
-    lastVersion: 0
