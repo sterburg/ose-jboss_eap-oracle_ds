@@ -35,7 +35,7 @@ Items:
       dockerStrategy:
         from:
           kind: ImageStreamTag
-          name: jboss-eap64-openshift:latest
+          name: jboss-eap64-openshift:1.1-6
           namespace: openshift
     triggers:
     - type: ImageChange
