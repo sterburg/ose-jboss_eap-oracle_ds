@@ -391,7 +391,7 @@ function inject_datasources() {
     done
   fi
 
-  datasources="$datasources$(inject_tx_datasource)"
+  #datasources="$datasources$(inject_tx_datasource)"
 
   sed -i "s|<!-- ##DATASOURCES## -->|${datasources%$'\n'}|" $CONFIG_FILE
 }
