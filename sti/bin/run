@@ -134,7 +134,7 @@ function generate_datasource() {
                 </xa-datasource>"
       ;;
     "oracle") ds="             <datasource jta=\"false\" jndi-name=\"$2\" pool-name=\"$1\" enabled=\"true\" use-ccm=\"false\">
-                    <connection-url>jdbc:oracle:thin:@(description=(enable=broken)(address_list=(load_balance=on)(failover=on)(address=(protocol=tcp)(host=$5)(port=$6))(address=(protocol=tcp)(host=$5)(port=$6)))(connect_data=(service_name=$7)(failover_mode=(type=select)(method=basic))))</connection-url>
+                    <connection-url>jdbc:oracle:thin:@$5:$6:$7</connection-url>
                     <driver-class>oracle.jdbc.OracleDriver</driver-class>
                     <driver>${10}</driver>
                     <pool>
