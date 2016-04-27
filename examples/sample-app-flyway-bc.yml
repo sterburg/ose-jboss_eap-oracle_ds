@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: List
+Items:
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      annotations:
+        openshift.io/image.dockerRepositoryCheck: 2016-04-17T07:47:24Z
+      creationTimestamp: null
+      labels:
+        app: greeter
+      name: greeter
+    spec:
+      tags:
+      - from:
+          kind: DockerImage
+          name: 172.30.195.192:5000/myapp/greeter:latest
+        name: latest
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      creationTimestamp: null
+      labels:
+        application: greeter
+        template: eap6-flyway-sti
+      name: greeter
+    spec:
+      output:
+        to:
+          kind: ImageStreamTag
+          name: greeter:latest
+      resources: {}
+      source:
+        git:
+          uri: https://github.com/sterburg/jboss-greeter
+          ref: v1
+        type: Git
+      strategy:
+        sourceStrategy:
+          from:
+            kind: ImageStreamTag
+            name: jboss-eap64-flyway:latest
+            namespace: jboss
+        type: Source
+      triggers:
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          from:
+            kind: ImageStreamTag
+            name: jboss-eap64-flyway:latest
+            namespace: jboss
+      - type: ConfigChange
