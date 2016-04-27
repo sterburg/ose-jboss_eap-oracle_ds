@@ -1,0 +1,67 @@
+== jboss-oracle ==
+cd ~/git/jboss-oracle/examples
+oc new-project jboss
+
+-- BuildConfig --
+view Dockerfile
+view jboss-eap64-oracle-bc.yml
+oc create -f jboss-eap64-oracle-bc.yml
+oc start-build jboss-eap64-oracle
+oc logs jboss-eap64-oracle-1
+
+-- Policy --
+oc policy add-role-to-group system:image-puller system:authenticated
+
+
+== myapp-oracle ==
+oc new-project myapp
+cd ~/git/jboss-greeter/examples
+
+-- BuildConfig --
+oc new-app -i jboss/jboss-eap64-oracle https://github.com/sterburg/jboss-greeter:v1
+oc expose svc/jboss-greeter --hostname=greeter.example.com
+curl -L http://172.17.0.7:8080/jboss-as-greeter
+
+-- oracle-service --
+setenforce 0
+docker start oracle
+alias sqlplus
+select * from "xe".USERS, test_user, "xe"."schema_version";
+view oracle-svc.yml
+oc create -f oracle-svc.yml
+dig @172.30.0.1 my-oracle.myapp.svc.cluster.local
+
+
+-- DeploymentConfig oracle --
+cat dc-1.yml
+oc edit dc/jboss-greeter  #add env
+view ~/git/jboss-oracle/sti/bin/run
+
+== jboss-flyway ==
+-- BuildConfig --
+cd ~/git/jboss-flyway
+cat Dockerfile
+oc project jboss
+oc new-app -i jboss-eap64-oracle --name=jboss-eap64-flyway .
+# replace ImageStream
+oc delete dc,svc jboss-eap64-flyway
+
+-- MyApp BuildConfig --
+cd ~/git/jboss-greeter/examples/
+oc project myapp
+oc edit bc jboss-greeter   #s/oracle/flyway/g
+view ~/git/jboss-flyway/flyway.sh + flyway.conf + Dockerfile/symlink-sql
+
+-- MyApp DeployConfig --
+sqlplus: delete from "schema_version";
+oc edit dc jboss-greeter   #add volumes + preHook
+oc deploy jboss-greeter --latest
+oc logs -f jboss-greeter-38-prehook
+sqlplus: select "version","installed_on" from "schema_version";
+
+-- MyApp --
+oc patch bc jboss-greeter -p '{"spec": {"source": {"git": {"ref": "v2" } } } }'
+oc start-build jboss-greeter
+
+-- Change Triggers --
+oc start-build jboss-eap64-oracle -n jboss

@@ -28,6 +28,11 @@ Create a <service> & <endpoints> object pointing to your Oracle RAC cluster (sca
 This service will be automatically added by Kubernetes as ENVironment variables to your running container: `<NAME>_<DATABASE_TYPE>_SERVICE_HOST`  && `<NAME>_<DATABASE_TYPE>_SERVICE_PORT` (aka "Service Discovery").  
 This service will also be automatically added by Kubernetes as a DNS entry: `<NAME>.<PROJECT>.svc.cluster.local` where `<PROJECT>.svc.cluster.local` is the default DNS suffix / search domain inside your other Docker containers running in the same project namespace, so you could use just `<NAME>` as the DNS request.
 
+As an example run Oracle XE in a docker container:
+`/examples/oracle-xe.sh`  
+`/examples/sqlplus.sh`
+
+
 
 ## Database Versioning
 
