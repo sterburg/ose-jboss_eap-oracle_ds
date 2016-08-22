@@ -1,6 +1,10 @@
 FROM registry.access.redhat.com/jboss-eap-6/eap64-openshift:latest
 
-ADD sti/bin/*   /usr/local/s2i/
+COPY s2i/bin/run   /usr/local/s2i/run
+COPY s2i/bin/datasource.sh    $JBOSS_HOME/bin/launch/datasource.sh
+COPY s2i/bin/tx-datasource.sh $JBOSS_HOME/bin/launch/tx-datasource.sh
+
+
 ADD modules/com/    /opt/eap/modules/com/
 ADD configuration/settings.xml /home/jboss/.m2/settings.xml
 ADD configuration/standalone-openshift.xml $JBOSS_HOME/standalone/configuration/standalone-openshift.xml
