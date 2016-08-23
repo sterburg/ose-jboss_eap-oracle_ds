@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    openshift.io/deployment.cancelled: "2"
+    openshift.io/generated-by: OpenShiftNewApp
+  creationTimestamp: null
+  labels:
+    app: oracle
+  name: oracle
+spec:
+  replicas: 1
+  selector:
+    app: oracle
+    deploymentconfig: oracle
+  strategy:
+    resources: {}
+    rollingParams:
+      intervalSeconds: 1
+      maxSurge: 25%
+      maxUnavailable: 25%
+      timeoutSeconds: 600
+      updatePeriodSeconds: 1
+    type: Rolling
+  template:
+    metadata:
+      annotations:
+        openshift.io/container.oracle.image.entrypoint: '["/bin/sh","-c","/usr/sbin/startup.sh
+          \u0026\u0026 /usr/sbin/sshd -D"]'
+        openshift.io/generated-by: OpenShiftNewApp
+      creationTimestamp: null
+      labels:
+        app: oracle
+        deploymentconfig: oracle
+    spec:
+      containers:
+      - env:
+        - name: ORACLE_ALLOW_REMOTE
+          value: "true"
+        image: 192.168.173.195:5000/cpr-pilot/oracle@sha256:e4e52c567030253f9d22162c3a2ea0709b62501dfe074ee632aa334b672d3f83
+        imagePullPolicy: Always
+        name: oracle
+        ports:
+        - containerPort: 22
+          protocol: TCP
+        - containerPort: 1521
+          protocol: TCP
+        - containerPort: 8080
+          protocol: TCP
+        resources: {}
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 0
+      terminationGracePeriodSeconds: 30
+  test: false
+  triggers:
+  - type: ConfigChange
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - oracle
+      from:
+        kind: ImageStreamTag
+        name: oracle:latest
+    type: ImageChange
+status: {}
