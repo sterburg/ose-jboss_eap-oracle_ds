@@ -14,8 +14,8 @@ RUN  curl https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/4.0/fly
      chmod +x   /usr/local/flyway-4.0/flyway; \
      rm -rf /usr/local/flyway-4.0/sql; \
      ln -s /home/jboss/source/src/main/resources/sql/ /usr/local/flyway-4.0
-COPY flyway.sh   /usr/local/bin/flyway
-COPY flyway.conf /usr/local/flyway-4.0/conf/flyway.conf
+COPY bin/flyway.sh             /usr/local/bin/flyway
+COPY configuration/flyway.conf /usr/local/flyway-4.0/conf/flyway.conf
 USER 185
 
 LABEL com.redhat.deployments-dir="/opt/eap/standalone/deployments" \
