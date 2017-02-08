@@ -12,13 +12,18 @@
 # $8 - connection checker class
 # $9 - exception sorter class
 # $10 - driver
+# $11 - original service name
+# $12 - datasource jta
 function generate_datasource() {
-
+  pool_name="${1}"
+  jndi_name="${2}"
+  driver="${10}"
+  service_name="${11}"
   case "${10}" in
-    "mysql") 
+   "mysql") 
       if [ -n "$NON_XA_DATASOURCE" ] && [ "$NON_XA_DATASOURCE" = "true" ]; then
         ds="
-                  <datasource jndi-name=\"$2\" pool-name=\"$1\" use-java-context=\"true\" enabled=\"true\">
+                  <datasource jta=\"${12}\" jndi-name=\"$2\" pool-name=\"$1\" use-java-context=\"true\" enabled=\"true\">
                       <connection-url>jdbc:mysql://$5:$6/$7</connection-url>
                       <driver>${10}</driver>"
       else
@@ -80,7 +85,7 @@ function generate_datasource() {
       ;;
     "postgresql") 
       if [ -n "$NON_XA_DATASOURCE" ] && [ "$NON_XA_DATASOURCE" = "true" ]; then
-        ds="                <datasource jndi-name=\"$2\" pool-name=\"$1\" use-java-context=\"true\" enabled=\"true\">
+        ds="                <datasource jta=\"${12}\" jndi-name=\"$2\" pool-name=\"$1\" use-java-context=\"true\" enabled=\"true\">
                       <connection-url>jdbc:postgresql://$5:$6/$7</connection-url>
                       <driver>${10}</driver>"
       else
@@ -139,7 +144,6 @@ function generate_datasource() {
 
       ;;
 
-
     "oracle") ds="             <datasource jta=\"false\" jndi-name=\"$2\" pool-name=\"$1\" enabled=\"true\" use-ccm=\"false\">
                     <connection-url>jdbc:oracle:thin:@$5:$6:$7</connection-url>
                     <driver-class>oracle.jdbc.OracleDriver</driver-class>
@@ -164,10 +168,33 @@ function generate_datasource() {
                 </datasource>"
       ;;
 
+    "sqlserver") ds="            <datasource jndi-name=\"$2\" pool-name=\"$1\">
+                    <connection-url>jdbc:microsoft:sqlserver://$5:$6;DatabaseName=$7</connection-url>
+                    <driver>sqlserver</driver>
+                    <security>
+                      <user-name>$3</user-name>
+                      <password>$4</password>
+                    </security>
+                    <validation>
+                      <valid-connection-checker class-name=\"org.jboss.jca.adapters.jdbc.extensions.sqlserver.MSSQLValidConnectionChecker\"></valid-connection-checker>
+                    </validation>
+                  </datasource>"
 
+      ;;
 
+    *) 
+      driver="hsql"
+      jndi_name="java:jboss/datasources/ExampleDS"
+      if [ -n "$DB_JNDI" ]; then
+        jndi_name="$DB_JNDI"
+      fi
+      pool_name="ExampleDS"
+      service_name="ExampleDS"
+      if [ -n "$DB_POOL" ]; then
+        pool_name="$DB_POOL"
+      fi
 
-    *) ds="                <datasource jndi-name=\"java:jboss/datasources/ExampleDS\" pool-name=\"ExampleDS\" enabled=\"true\" use-java-context=\"true\">
+      ds="                <datasource jndi-name=\"${jndi_name}\" pool-name=\"${pool_name}\" enabled=\"true\" use-java-context=\"true\">
                     <connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>
                     <driver>h2</driver>
                     <security>
@@ -178,7 +205,34 @@ function generate_datasource() {
       ;;
   esac
 
+  if [ -n "$TIMER_SERVICE_DATA_STORE" -a "$TIMER_SERVICE_DATA_STORE" = "${service_name}" ]; then
+    inject_timer_service ${pool_name}_ds
+    inject_datastore $pool_name $jndi_name $driver
+  fi
+
   echo $ds | sed ':a;N;$!ba;s|\n|\\n|g'
+}
+
+# Arguments:
+# $1 - timer service datastore
+function inject_timer_service() {
+  timerservice="            <timer-service thread-pool-name=\"default\" default-data-store=\"${1}\">\
+                <data-stores>\
+                    <file-data-store name=\"default-file-store\" path=\"timer-service-data\" relative-to=\"jboss.server.data.dir\"/>\
+                    <!-- ##DATASTORES## -->\
+                </data-stores>\
+            </timer-service>"
+  sed -i "s|<!-- ##TIMER_SERVICE## -->|${timerservice%$'\n'}|" $CONFIG_FILE
+}
+
+# Arguments:
+# $1 - service name
+# $2 - datasource jndi name
+# $3 - datasource databasename
+function inject_datastore() {
+  datastore="<database-data-store name=\"${1}_ds\" datasource-jndi-name=\"${2}\" database=\"${3}\" partition=\"${1}_part\"/>\
+        <!-- ##DATASTORES## -->"
+  sed -i "s|<!-- ##DATASTORES## -->|${datastore%$'\n'}|" $CONFIG_FILE
 }
 
 # Finds the name of the database services and generates data sources
@@ -186,6 +240,10 @@ function generate_datasource() {
 function inject_datasources() {
   # Find all databases in the $DB_SERVICE_PREFIX_MAPPING separated by ","
   IFS=',' read -a db_backends <<< $DB_SERVICE_PREFIX_MAPPING
+
+  if [ -z "$TIMER_SERVICE_DATA_STORE" ]; then
+    inject_timer_service default-file-store
+  fi
 
   if [ "${#db_backends[@]}" -eq "0" ]; then
     datasources=$(generate_datasource)
@@ -254,12 +312,18 @@ function inject_datasources() {
 
       # Transaction isolation level environment variable name format: [NAME]_[DATABASE_TYPE]_TX_ISOLATION
       tx_isolation=$(find_env "${prefix}_TX_ISOLATION")
-    
+
       # min pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MIN_POOL_SIZE
       min_pool_size=$(find_env "${prefix}_MIN_POOL_SIZE")
-    
+
       # max pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MAX_POOL_SIZE
       max_pool_size=$(find_env "${prefix}_MAX_POOL_SIZE")
+
+      # jta environment variable name format: [NAME]_[DATABASE_TYPE]_JTA
+      jta=$(find_env "${prefix}_JTA" true)
+
+      # $NON_XA_DATASOURCE: [NAME]_[DATABASE_TYPE]_NONXA (DB_NONXA)
+      NON_XA_DATASOURCE=$(find_env "${prefix}_NONXA" false)
 
       case "$db" in
         "MYSQL")
@@ -280,8 +344,11 @@ function inject_datasources() {
           checker="dummy_checker_class"
           sorter="dummy_sorter_class"
           ;;
-
-
+        "SQLSERVER")
+          driver="sqlserver"
+          checker="dummy_checker_class"
+          sorter="dummy_sorter_class"
+          ;;
         *)
           echo "There is a problem with the DB_SERVICE_PREFIX_MAPPING environment variable!"
           echo "You provided the following database mapping (via DB_SERVICE_PREFIX_MAPPING): $db_backend."
@@ -294,8 +361,7 @@ function inject_datasources() {
           ;;
       esac
 
-      datasources="$datasources$(generate_datasource ${service,,} $jndi $username $password $host $port $database $checker $sorter $driver)\n"
-    
+      datasources="$datasources$(generate_datasource ${service,,}-${prefix} $jndi $username $password $host $port $database $checker $sorter $driver $service_name $jta)\n"
     done
   fi
 
